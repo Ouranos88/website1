@@ -1,130 +1,120 @@
-# :books: LINFO2145 Project: Scalable Shopping-cart Application
+# :books: LINFO2145 Project: Front-end
 
 **LINFO2145 Autumn, 2023** -- *Etienne Rivière, Donatien Schmitz, Yinan Cao, and Samy Bettaieb*
 
-The LINFO2145 project will last for most of the quadrimester, and is structured in two parts, corresponding to the two main focuses of the course: (1) How to build applications for many users? (2) How to handle large amounts of data?
 
-- In this first part, you will learn how to build elastically scalable backend services for an application, and host them on [Azure](https://azure.microsoft.com/en-us/global-infrastructure/).
-- In a second part, you will learn how to implement efficient processing on the logs of this application, allowing new features such as a recommender system.
+## Objectives
 
-:pencil: **Note.** The second part description will be available later as a separate file.
-<!-- [is available as a separate file](README-part2.md). -->
+This tutorial shows you how to:
 
-The description of the project on this page focuses on the general objectives and requirements.
-You should first read this document carefully.
-Then, you can proceed to the practical bootstrap tutorials (links are provided at the end of this document).
+1. Build and deploy the front-end with Docker.
+1. Use the front-end Web interface;
+1. Understand the structure of the source code;
 
-:pencil: **Note.** The grading rules for the project are available in a separate file [Grading.md](Grading.md).
+:bulb: **Recall.**
+We encourage you to follow the tutorial solo.
 
-## Your mission
+:bulb: **Recall.**
+This tutorial requires you to complete some exercises that are tagged with this icon :pencil2:
 
-Your team of two developers has been tasked with the design and implementation of the *backend* of a shopping-cart application (**SCApp** for short).
-SCApp allows users to browse for items.
-Once a user is logged in, he or she can add items to a shopping cart, and eventually checkout and buy the products.
+## Introduction
 
-The front-end development team already built a reactive Web interface using a modern framework, [Svelte](https://svelte.dev/).
-This front-end prototype is already functional: it allows browsing through a set of objects, and it emulates the cart and checkout functionalities.
-However, this prototype only uses local storage: the set of items in the shop (including their characteristics, their photo, etc.) and the state associated with the user session (the content of the cart, etc.) are downloaded as static content, or maintained as a local state in the client browser.
+The structure of the application is kept simple (see image below).
+The main page is a catalog of products grouped by categories.
 
-Obviously, this is not how a SCApp should work in practice: the list of items, their characteristics, availability, their photo etc. must be obtained dynamically from a remote back end service running in the Cloud.
-Information about the user activity, such as her/his shopping cart content, must also be maintained and kept in the Cloud.
-This is where your role starts.
+![image](images/scapp-w.png)
 
-Starting from the provided front-end, you will build a series of microservices running in the Cloud and supporting the *back-end* of the application.
-In the following, you will find the requirements that the management team has set up for the application.
+We detail below how to build and deploy a container with the front-end of the application (*served and running in the client web browser*).
+You will need to create and use your container image for development and testing.
 
-## Functional requirements
+## Build and deploy
 
-SCApp recognizes three user roles:
+`npm` is a package manager for Javascript.
+Some of the tasks you may perform with `npm` are: installation of dependencies, creation of releases or unit testing.
+Svelte applications are maintained with `npm`.
+The tool is already included in the `nodejs` base Docker image.
 
-- **Non-authenticated users** browse and see items, but they cannot add anything to their cart;
-- **Authenticated users** add items to their cart, and proceed to check out;
-- **Administrators** have the possibility to change the information about existing items and to add new items to the catalogue.
+We can now build our first version of the frontend!
+The image shall contain the source code itself, and all dependencies, libraries, etc. it needs.
 
-The first service you will need to build is therefore an *authentication service*.
-Actually, this step is the focus of the [second bootstrap tutorial](tutorials/02_ProjectSetup_AuthenticationService.md) where we will show how to build and run the service using [node.js](https://nodejs.org/en/) in a container.
-Later, we will see how to host and run this container in a VM in Azure.
-The tutorial also details how to connect the front-end to the back-end for this service.
+:pencil: **Note.**
+The list of dependencies is in the JSON file `package.json`.
 
-The service allows **authenticated users** to perform the following actions.
+The following Dockerfile lets you build an image of the front-end.
 
-- Browse through a collection of items, and see a page for each item individually.
-- Add/Remove items to/from a shopping cart.
-- Perform a purchase (checking out).
-- Make purchases persistent. When a user leaves the application and later reconnects (possibly from another browser) the history of purchases must be preserved as well as the content of the cart.
+``` dockerfile
+FROM node:20-alpine AS build
 
-The following functionalities are restricted to *administrators*.
+WORKDIR /app
 
-- Use an interface for updating the characteristics of an item (price, description). Ideally, this interface could be a Web interface, but it is accepted that it is only a simple HTML form. A command-line API, or a RESTful API used with the `curl` tool is also acceptable.
-- An interface for adding new items to the cart, including a new description, and a new photo.
+COPY package.json ./
 
-## Technical requirements
+RUN npm install
+COPY . ./
+RUN npm run build
 
-The realization of your back-end must respect the following technical conventions:
+CMD node build
+```
 
-- It must use a set of microservices offering RESTful APIs over HTTP.
-- Each microservice must employ its own database, and this database must be able to scale to handle a (potentially large) number of future clients. In particular, we strongly recommend the use of [CouchDB](http://couchdb.apache.org).
-- Microservices must be packaged as Docker containers, and use Docker networking to connect with their database.
-- Every microservice must be properly documented and tested.
+:pencil: **Exercises.**
+To create a container with this version of your front-end, complete these tasks:
 
-The storage of the images of the products must be externalized to [Azure Storage](https://docs.microsoft.com/en-us/azure/storage/).
-When a new product is entered using the administrator's interface, the provided image must be uploaded to Azure Storage.
+1. Create a `Dockerfile` with the previous content in the directory `../src/front-end`;
+2. Build an image of your new front-end with the name `scapp-frontend` 
+3. Run a container of this image with port __3000__ forwarded (default port of this application);
 
-:gift: **Bonus.** The first version of your admin interface can consider that the format of the image provided by the administrator is correct (same height/width, JPEG format, and sufficiently small in size to display fast in the front-end application).
-In a second version, you may process, validate and possibly resize/rescale the image before storing it in Azure Storage.
-This can be done in a dedicated microservice, or using server-less processing with [Azure Functions](https://azure.microsoft.com/en-us/services/functions/).
+4. In a new tab of your web browser, show the main page of the front-end (the address is the ip of your VM + the port your indicated in the `docker run` command);
 
-### Logging
+:bulb: **Recall.**
+Whenever you alter the source code, you have to re-build the Docker image.
 
-In order to facilitate debugging and later allow processing of user-generated data, you must also provide a *logging microservice*.
-Other microservices will asynchronously send logs to this service, who will store them in a CouchDB database as JSON objects.
 
-:pencil: **Note.** For this service, we impose the use of the CouchDB as it will be necessary in the second part of the project.
-You remain free to use other databases for your other microservices.
+## Purchases in SCApp
 
-The logging service must log the following information:
+Users without an account are **only** able to *consult* the catalog of products while registered users may also *purchase* products.
+To create an account, click on the **Register** button and provide a username and a password.
 
-- User actions, such as viewing an item, adding an item to the cart, buying an item, etc.
-- Performance measurements, such as the time spent for answering a call by each microservice, the nature of the call, and the role of the client.
-- Any other information you think can have an interest for the marketing department and for performance insights for the deployment team.
+The **ADD TO CART** button under every product picture is now enabled.
+Users may start the checkout procedure by clicking on the top-right button and then on the **CHECKOUT** button.
+Another page appears with the history of purchases.
 
-#### Elastic scaling
+The front-end mimics an authentication service by locally storing users' information.
+Note that users authentication information and purchases are not persistent.
+If you clear your local storage, you will need to re-register in order to log again.
 
-The load that each microservice will support over time can change, depending on the number of active users.
-We therefore want to be able to add and remove instances of each microservice dynamically, a property known as *elastic scaling*.
+## Source code
 
-Each of your microservice will be formed of a pair: a stateless service implementation in node.js and a database.
-The database and the service implementation must be able to scale independently.
-For instance, the authentication service may decide to add a node to the database it uses (CouchDB) while keeping the number of service instances the same, or reversely use more service instances while keeping the database as it is.
+Since you will make minor changes to the front-end in the first part of the project, this section provides a brief overview of the code organization.
 
-## Deliverable
+The front-end is a [Svelte](https://svelte.dev/) application.
+Its source code is in the folder `../src/front-end`.
+Below, you will find a brief description of its content.
 
-Your deliverable should target the deployment team (as well as the front end team), who should be able to set up and run your entire back-end on Azure using an account different than your own.
+``` text
+front-end
+├── package.json            << dependencies and instructions to build/deploy
+├── src/
+│   ├── assets/css/          << style assets 
+│   ├── interfaces/         << components (cart, product, ...)
+│   ├── routes/             << routes - each folder represents a single route
+│   ├── stores/             << helpers for storing shared object
+│   └── app.html            << main page
+└──static/
+    └── favicon.png
+```
 
-This will take the form of a private GitHub repository that the deployment and front-end teams will be able to access (in your case, LINFO2145 instructors).
-This repository is initialized as a **private fork** of the LINFO2145 2022-2023 repository.
-You will *pull* changes made to the reference repository to your own, e.g. to get the instructions for the second part of the project.
+The front-end is formed of several Javascript classes.
+The code of these classes follows the Svelte syntax, a combination of Javascript and XML-like tags (more details in [this link](https://learn.svelte.dev/tutorial/welcome-to-svelte)).
+Before continuing, we **strongly** suggest you follow in detail this small and interactive tutorial, more precisely the following sections:
+1. Introduction
+2. Reactivity
+3. Props
+4. Logic
+5. Bindings
+6. Stores
 
-The version that will be considered is the one available at the deadline (announced in class and on Moodle).
-You will announce the availability of your deliverable by filling in an assignment on Moodle with the name of your repository and the confirmation that you have invited the three of us to access it.
+## Final comments
 
-Your deliverable must include:
-
-- The code in node.js for each microservice, the Docker configuration files and any script allowing its easy deployment;
-- Instructions on the necessary Azure setup (or even better, a script performing those automatically);
-- Each microservice must be described in the README.md file of its source folder, including its role, limitations, and its complete API specification.
-
-:pencil: **Note.** Feel free to send us a *pull request* with suggested changes.
-Meaningful updates to the course GitHub repositories can be taken into account as a bonus when grading your project.
-
-## Bootstrap tutorials
-
-The following bootstrap tutorials should be your starting points for working on the project:
-
-1. The [bootstrap tutorial](tutorials/README.md) gives pointers to useful documentation and details what should be installed on your development machine;
-1. The [front end tutorial](tutorials/01_ProjectSetup_FrontEnd.md) details how to run the provided front end for the application.
-1. The [authentication microservice tutorial](tutorials/02_ProjectSetup_AuthenticationService.md) shows how to run a first microservice for the backend of the application and to connect this microservice from the frontend.
-
-As the project advances, we will provide new tutorials for employing techniques and solutions seen in class.
-In the first phase, you should deploy and run your project on your local mini-cloud (as we have done during tutorials 1 and 2).
-We will later provide information on how to access and deploy the back end on Microsoft Azure.
+:checkered_flag: **That's it.**
+You have now an overview of the front-end.
+Continue with the authentication micro-service tutorial ([link here](02_ProjectSetup_AuthenticationService.md)).
